@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand colors -->
+    <color name="primary">#FF42A5F5</color>
+    <color name="primary_dark">#FF1E88E5</color>
+    <color name="primary_variant">#FF1565C0</color>
+    <color name="secondary">#FFFFAB40</color>
+    <color name="on_primary">#FF000000</color>
+
+    <!-- Background and surface -->
+    <color name="background_dark">#FF121220</color>
+    <color name="surface_dark">#FF1E1E32</color>
+
+    <!-- Text -->
+    <color name="text_primary">#FFFFFFFF</color>
+    <color name="text_secondary">#B3FFFFFF</color>
+
+    <!-- Navigation item colors -->
+    <color name="nav_item_color">#FF42A5F5</color>
+    <color name="nav_item_inactive">#80FFFFFF</color>
+</resources>

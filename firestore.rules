@@ -1,0 +1,47 @@
+// Firestore Security Rules for BrickSmash
+// Deploy these rules in the Firebase Console under Firestore > Rules
+//
+// These rules ensure:
+// - Users can only write their own scores
+// - Users can only modify their own profile
+// - Everyone can read the leaderboard
+// - Only authenticated users can publish community levels
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // User profiles
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Leaderboard scores
+    match /scores/{scoreId} {
+      allow read: if true;  // Public leaderboard
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.score is int
+                    && request.resource.data.score >= 0
+                    && request.resource.data.score <= 999999;
+      allow update, delete: if false;  // Scores are immutable
+    }
+
+    // Community levels
+    match /community_levels/{levelId} {
+      allow read: if true;  // Anyone can browse
+      allow create: if request.auth != null
+                    && request.resource.data.authorId == request.auth.uid;
+      allow update: if request.auth != null
+                    && (
+                      // Author can update their own level
+                      resource.data.authorId == request.auth.uid
+                      // Or anyone can increment playCount
+                      || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['playCount']))
+                    );
+      allow delete: if request.auth != null
+                    && resource.data.authorId == request.auth.uid;
+    }
+  }
+}

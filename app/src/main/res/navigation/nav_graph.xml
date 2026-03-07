@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/mainMenuFragment">
+
+    <fragment
+        android:id="@+id/mainMenuFragment"
+        android:name="com.bricksmash.ui.MainMenuFragment"
+        android:label="BrickSmash"
+        tools:layout="@layout/fragment_main_menu">
+
+        <action
+            android:id="@+id/action_mainMenu_to_levelSelect"
+            app:destination="@id/levelSelectFragment" />
+        <action
+            android:id="@+id/action_mainMenu_to_leaderboard"
+            app:destination="@id/leaderboardFragment" />
+        <action
+            android:id="@+id/action_mainMenu_to_levelEditor"
+            app:destination="@id/levelEditorFragment" />
+        <action
+            android:id="@+id/action_mainMenu_to_settings"
+            app:destination="@id/settingsFragment" />
+        <action
+            android:id="@+id/action_mainMenu_to_login"
+            app:destination="@id/loginFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/levelSelectFragment"
+        android:name="com.bricksmash.ui.LevelSelectFragment"
+        android:label="Select Level"
+        tools:layout="@layout/fragment_level_select">
+
+        <action
+            android:id="@+id/action_levelSelect_to_game"
+            app:destination="@id/gameFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/gameFragment"
+        android:name="com.bricksmash.ui.GameFragment"
+        android:label="Game"
+        tools:layout="@layout/fragment_game">
+
+        <argument
+            android:name="levelIndex"
+            app:argType="integer"
+            android:defaultValue="0" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/leaderboardFragment"
+        android:name="com.bricksmash.ui.LeaderboardFragment"
+        android:label="Leaderboard"
+        tools:layout="@layout/fragment_leaderboard" />
+
+    <fragment
+        android:id="@+id/levelEditorFragment"
+        android:name="com.bricksmash.ui.LevelEditorFragment"
+        android:label="Level Editor"
+        tools:layout="@layout/fragment_level_editor" />
+
+    <fragment
+        android:id="@+id/settingsFragment"
+        android:name="com.bricksmash.ui.SettingsFragment"
+        android:label="Settings"
+        tools:layout="@layout/fragment_settings" />
+
+    <fragment
+        android:id="@+id/loginFragment"
+        android:name="com.bricksmash.ui.LoginFragment"
+        android:label="Sign In"
+        tools:layout="@layout/fragment_login">
+
+        <action
+            android:id="@+id/action_login_to_register"
+            app:destination="@id/registerFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/registerFragment"
+        android:name="com.bricksmash.ui.RegisterFragment"
+        android:label="Register"
+        tools:layout="@layout/fragment_register" />
+
+</navigation>

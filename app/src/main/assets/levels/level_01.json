@@ -1,0 +1,22 @@
+{
+  "id": "builtin_1",
+  "name": "Getting Started",
+  "author": "BrickSmash",
+  "difficulty": 1,
+  "rows": 6,
+  "cols": 8,
+  "grid": [
+    [{"type":1,"color":"#F44336"},{"type":1,"color":"#F44336"},{"type":1,"color":"#F44336"},{"type":1,"color":"#F44336"},{"type":1,"color":"#F44336"},{"type":1,"color":"#F44336"},{"type":1,"color":"#F44336"},{"type":1,"color":"#F44336"}],
+    [{"type":1,"color":"#E91E63"},{"type":1,"color":"#E91E63"},{"type":1,"color":"#E91E63"},{"type":1,"color":"#E91E63"},{"type":1,"color":"#E91E63"},{"type":1,"color":"#E91E63"},{"type":1,"color":"#E91E63"},{"type":1,"color":"#E91E63"}],
+    [{"type":1,"color":"#9C27B0"},{"type":1,"color":"#9C27B0"},{"type":1,"color":"#9C27B0"},{"type":1,"color":"#9C27B0"},{"type":1,"color":"#9C27B0"},{"type":1,"color":"#9C27B0"},{"type":1,"color":"#9C27B0"},{"type":1,"color":"#9C27B0"}],
+    [{"type":0,"color":""},{"type":0,"color":""},{"type":0,"color":""},{"type":0,"color":""},{"type":0,"color":""},{"type":0,"color":""},{"type":0,"color":""},{"type":0,"color":""}],
+    [{"type":0,"color":""},{"type":0,"color":""},{"type":0,"color":""},{"type":0,"color":""},{"type":0,"color":""},{"type":0,"color":""},{"type":0,"color":""},{"type":0,"color":""}],
+    [{"type":0,"color":""},{"type":0,"color":""},{"type":0,"color":""},{"type":0,"color":""},{"type":0,"color":""},{"type":0,"color":""},{"type":0,"color":""},{"type":0,"color":""}]
+  ],
+  "targetScore": 500,
+  "ballSpeedMultiplier": 1.0,
+  "isBuiltIn": true,
+  "isCommunity": false,
+  "playCount": 0,
+  "rating": 0
+}
