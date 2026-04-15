@@ -1,0 +1,70 @@
+# Built application files
+*.apk
+*.aar
+*.ap_
+*.aab
+
+# Files for the ART/Dalvik VM
+*.dex
+
+# Java class files
+*.class
+
+# Generated files
+bin/
+gen/
+out/
+build/
+
+# Gradle files
+.gradle/
+build/
+
+# Local configuration file (sdk path, etc)
+local.properties
+
+# Android Studio
+*.iml
+.idea/
+.idea/.name
+.idea/caches/
+.idea/libraries/
+.idea/modules.xml
+.idea/workspace.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+.idea/compiler.xml
+.idea/gradle.xml
+.idea/vcs.xml
+.idea/misc.xml
+.idea/markdown.xml
+.idea/migrations.xml
+.idea/runConfigurations.xml
+.idea/studiobot.xml
+.idea/deviceStreaming.xml
+.idea/copilot.data.migration.ask2agent.xml
+.idea/AndroidProjectSystem.xml
+
+# Captures / profiling
+captures/
+
+# Keystore files
+*.jks
+*.keystore
+
+# External native build
+.externalNativeBuild/
+.cxx/
+
+# Google Services (contains API keys - do NOT commit)
+app/google-services.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Gradle wrapper (optional - some teams commit this, but for a class project it's fine to exclude)
+gradle/wrapper/gradle-wrapper.jar
+
+# Build reports
+build/reports/
