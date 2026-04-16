@@ -10,13 +10,15 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!-- Top bar with pause/back buttons -->
+    <!-- Top bar with pause/back buttons — extra top padding to clear status bar -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="end"
-        android:padding="8dp">
+        android:paddingTop="40dp"
+        android:paddingEnd="12dp"
+        android:paddingStart="12dp">
 
         <ImageButton
             android:id="@+id/btnPause"

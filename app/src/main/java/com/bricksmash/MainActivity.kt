@@ -23,11 +23,12 @@ class MainActivity : AppCompatActivity() {
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
         val navController = navHostFragment.navController
 
-        // Hide bottom nav when in the game screen
+        // Hide bottom nav during game, login, and registration
         navController.addOnDestinationChangedListener { _, destination, _ ->
             binding.bottomNav.visibility = when (destination.id) {
-                R.id.gameFragment -> android.view.View.GONE
-                R.id.loginFragment, R.id.registerFragment -> android.view.View.GONE
+                R.id.gameFragment,
+                R.id.loginFragment,
+                R.id.registerFragment -> android.view.View.GONE
                 else -> android.view.View.VISIBLE
             }
         }

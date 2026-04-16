@@ -9,6 +9,7 @@ import androidx.navigation.fragment.findNavController
 import com.bricksmash.R
 import com.bricksmash.data.UserRepository
 import com.bricksmash.databinding.FragmentMainMenuBinding
+import com.google.android.material.bottomnavigation.BottomNavigationView
 
 /**
  * Main menu screen with options for Play, Leaderboard,
@@ -30,27 +31,31 @@ class MainMenuFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Update login status text
         updateAuthUI()
 
+        // Play button — select the Levels tab so navigation stays in sync
         binding.btnPlay.setOnClickListener {
-            findNavController().navigate(R.id.action_mainMenu_to_levelSelect)
+            activity?.findViewById<BottomNavigationView>(R.id.bottom_nav)
+                ?.selectedItemId = R.id.levelSelectFragment
         }
 
         binding.btnLeaderboard.setOnClickListener {
-            findNavController().navigate(R.id.action_mainMenu_to_leaderboard)
+            activity?.findViewById<BottomNavigationView>(R.id.bottom_nav)
+                ?.selectedItemId = R.id.leaderboardFragment
         }
 
         binding.btnLevelEditor.setOnClickListener {
             if (userRepo.isLoggedIn) {
-                findNavController().navigate(R.id.action_mainMenu_to_levelEditor)
+                activity?.findViewById<BottomNavigationView>(R.id.bottom_nav)
+                    ?.selectedItemId = R.id.levelEditorFragment
             } else {
                 findNavController().navigate(R.id.action_mainMenu_to_login)
             }
         }
 
         binding.btnSettings.setOnClickListener {
-            findNavController().navigate(R.id.action_mainMenu_to_settings)
+            activity?.findViewById<BottomNavigationView>(R.id.bottom_nav)
+                ?.selectedItemId = R.id.settingsFragment
         }
 
         binding.btnLogin.setOnClickListener {
