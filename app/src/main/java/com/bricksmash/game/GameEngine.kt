@@ -36,6 +36,9 @@ class GameEngine {
     private var screenWidth: Float = 0f
     private var screenHeight: Float = 0f
 
+    // Status bar offset so HUD doesn't overlap system UI
+    var statusBarHeight: Float = 80f
+
     // Level info
     private var currentLevel: LevelData? = null
     private var totalBreakableBricks: Int = 0
@@ -105,9 +108,9 @@ class GameEngine {
 
         paddle.reset(screenWidth, screenHeight)
 
-        // Create bricks from level data
-        val gridTop = 140f  // Space for HUD
-        val gridHeight = screenHeight * 0.4f
+        // Create bricks from level data — offset below status bar + HUD
+        val gridTop = statusBarHeight + 80f
+        val gridHeight = screenHeight * 0.35f
         val brickWidth = screenWidth / level.cols
         val brickHeight = gridHeight / level.rows
 
@@ -251,7 +254,6 @@ class GameEngine {
     private fun applyPowerUp(powerUp: PowerUp, now: Long) {
         when (powerUp.type) {
             PowerUp.Type.MULTI_BALL -> {
-                // Clone existing active balls (up to 2 new balls)
                 val activeBalls = balls.filter { it.isActive }.take(1)
                 for (ball in activeBalls) {
                     balls.add(ball.clone())
@@ -339,17 +341,19 @@ class GameEngine {
     }
 
     private fun drawHUD(canvas: Canvas) {
+        val hudTop = statusBarHeight + 10f
+
         // Score
-        canvas.drawText("Score: $score", 20f, 60f, hudPaint)
+        canvas.drawText("Score: $score", 20f, hudTop, hudPaint)
 
         // Lives
         val livesText = "Lives: $lives"
         val livesWidth = hudPaint.measureText(livesText)
-        canvas.drawText(livesText, screenWidth - livesWidth - 20f, 60f, hudPaint)
+        canvas.drawText(livesText, screenWidth - livesWidth - 20f, hudTop, hudPaint)
 
         // Level name
         currentLevel?.let {
-            canvas.drawText(it.name, 20f, 100f, hudSmallPaint)
+            canvas.drawText(it.name, 20f, hudTop + 36f, hudSmallPaint)
         }
 
         // Active power-up indicators
@@ -359,21 +363,21 @@ class GameEngine {
             val text = "WIDE"
             indicatorX -= hudSmallPaint.measureText(text)
             hudSmallPaint.color = PowerUp.Type.WIDE_PADDLE.color
-            canvas.drawText(text, indicatorX, 100f, hudSmallPaint)
+            canvas.drawText(text, indicatorX, hudTop + 36f, hudSmallPaint)
             indicatorX -= 16f
         }
         if (now < fireballEndTime) {
             val text = "FIRE"
             indicatorX -= hudSmallPaint.measureText(text)
             hudSmallPaint.color = PowerUp.Type.FIREBALL.color
-            canvas.drawText(text, indicatorX, 100f, hudSmallPaint)
+            canvas.drawText(text, indicatorX, hudTop + 36f, hudSmallPaint)
             indicatorX -= 16f
         }
         if (now < slowMotionEndTime) {
             val text = "SLOW"
             indicatorX -= hudSmallPaint.measureText(text)
             hudSmallPaint.color = PowerUp.Type.SLOW_MOTION.color
-            canvas.drawText(text, indicatorX, 100f, hudSmallPaint)
+            canvas.drawText(text, indicatorX, hudTop + 36f, hudSmallPaint)
         }
         hudSmallPaint.color = Color.argb(180, 255, 255, 255) // reset
     }

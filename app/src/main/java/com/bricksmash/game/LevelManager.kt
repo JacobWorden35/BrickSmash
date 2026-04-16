@@ -3,10 +3,15 @@ package com.bricksmash.game
 import android.content.Context
 import com.bricksmash.model.LevelData
 import kotlinx.serialization.json.Json
+import android.view.WindowInsets
 
 /**
  * Manages loading levels from local assets (built-in) and
  * from Firestore (community levels).
+ *
+ * Always provides 15 levels. Loads from assets/levels/ first,
+ * then supplements with procedurally generated levels for any
+ * indices not covered by JSON files.
  */
 class LevelManager(private val context: Context) {
 
@@ -14,11 +19,14 @@ class LevelManager(private val context: Context) {
     private val builtInLevels = mutableListOf<LevelData>()
 
     /**
-     * Loads all built-in levels from the assets/levels/ directory.
+     * Loads all built-in levels. Reads JSON assets first, then fills
+     * remaining slots with generated levels to guarantee 15 total.
      */
     fun loadBuiltInLevels(): List<LevelData> {
         if (builtInLevels.isNotEmpty()) return builtInLevels
 
+        // First, load whatever JSON files exist in assets
+        val assetLevels = mutableListOf<LevelData>()
         try {
             val levelFiles = context.assets.list("levels") ?: emptyArray()
             for (fileName in levelFiles.sorted()) {
@@ -26,19 +34,23 @@ class LevelManager(private val context: Context) {
                     val jsonString = context.assets.open("levels/$fileName")
                         .bufferedReader().use { it.readText() }
                     val level = json.decodeFromString<LevelData>(jsonString)
-                    builtInLevels.add(level)
+                    assetLevels.add(level)
                 }
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            // If loading fails, generate default levels
-            if (builtInLevels.isEmpty()) {
-                builtInLevels.addAll(generateDefaultLevels())
-            }
         }
 
-        if (builtInLevels.isEmpty()) {
-            builtInLevels.addAll(generateDefaultLevels())
+        // Generate the full set of 15 default levels
+        val generatedLevels = generateDefaultLevels()
+
+        // Use asset levels where available, fill the rest with generated
+        for (i in generatedLevels.indices) {
+            if (i < assetLevels.size) {
+                builtInLevels.add(assetLevels[i])
+            } else {
+                builtInLevels.add(generatedLevels[i])
+            }
         }
 
         return builtInLevels
@@ -54,7 +66,7 @@ class LevelManager(private val context: Context) {
 
     companion object {
         /**
-         * Generates a set of default levels programmatically as a fallback.
+         * Generates a set of default levels programmatically.
          */
         fun generateDefaultLevels(): List<LevelData> {
             return listOf(
@@ -106,7 +118,6 @@ class LevelManager(private val context: Context) {
         ): List<List<com.bricksmash.model.BrickData>> {
             return when (levelId) {
                 1 -> {
-                    // Simple rows of normal bricks in the top half
                     List(rows) { row ->
                         List(cols) { _ ->
                             if (row < rows / 2) com.bricksmash.model.BrickData(type = 1)
@@ -115,7 +126,6 @@ class LevelManager(private val context: Context) {
                     }
                 }
                 2 -> {
-                    // More rows filled
                     List(rows) { row ->
                         List(cols) { _ ->
                             if (row < rows - 1) com.bricksmash.model.BrickData(type = 1)
@@ -124,7 +134,6 @@ class LevelManager(private val context: Context) {
                     }
                 }
                 3 -> {
-                    // Full wall
                     List(rows) { _ ->
                         List(cols) { _ ->
                             com.bricksmash.model.BrickData(type = 1)
@@ -132,7 +141,6 @@ class LevelManager(private val context: Context) {
                     }
                 }
                 4 -> {
-                    // Checkerboard pattern
                     List(rows) { row ->
                         List(cols) { col ->
                             if ((row + col) % 2 == 0) com.bricksmash.model.BrickData(type = 1)
@@ -141,7 +149,6 @@ class LevelManager(private val context: Context) {
                     }
                 }
                 5 -> {
-                    // Diamond shape
                     val centerR = rows / 2
                     val centerC = cols / 2
                     List(rows) { row ->
@@ -153,7 +160,6 @@ class LevelManager(private val context: Context) {
                     }
                 }
                 6 -> {
-                    // Pyramid
                     List(rows) { row ->
                         List(cols) { col ->
                             val margin = row
@@ -164,7 +170,6 @@ class LevelManager(private val context: Context) {
                     }
                 }
                 7 -> {
-                    // Mix of normal and hardened
                     List(rows) { row ->
                         List(cols) { col ->
                             if (row == 0 || row == rows - 1 || col == 0 || col == cols - 1)
@@ -174,7 +179,6 @@ class LevelManager(private val context: Context) {
                     }
                 }
                 10 -> {
-                    // With indestructible bricks creating a maze
                     List(rows) { row ->
                         List(cols) { col ->
                             when {
@@ -186,7 +190,6 @@ class LevelManager(private val context: Context) {
                     }
                 }
                 else -> {
-                    // Generic mixed level, more hardened bricks at higher levels
                     val hardenedChance = (levelId * 0.05).coerceAtMost(0.4)
                     val indestructibleChance = if (levelId > 9) 0.08 else 0.0
                     List(rows) { _ ->

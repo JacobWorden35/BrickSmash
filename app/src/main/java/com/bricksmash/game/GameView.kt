@@ -7,6 +7,7 @@ import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import android.view.WindowInsets
 import com.bricksmash.model.LevelData
 
 /**
@@ -21,6 +22,7 @@ class GameView @JvmOverloads constructor(
     val engine = GameEngine()
     private var gameThread: GameThread? = null
     private var isSurfaceReady = false
+    private var pendingLevel: LevelData? = null
 
     init {
         holder.addCallback(this)
@@ -29,7 +31,15 @@ class GameView @JvmOverloads constructor(
 
     override fun surfaceCreated(holder: SurfaceHolder) {
         isSurfaceReady = true
+
+        // Add this line:
+        engine.statusBarHeight = rootWindowInsets?.getInsets(WindowInsets.Type.statusBars())?.top?.toFloat() ?: 80f
+
         engine.init(width.toFloat(), height.toFloat())
+        pendingLevel?.let {
+            engine.loadLevel(it)
+            pendingLevel = null
+        }
         startThread()
     }
 
@@ -78,7 +88,11 @@ class GameView @JvmOverloads constructor(
      * Loads a level into the game engine and starts gameplay.
      */
     fun loadLevel(level: LevelData) {
-        engine.loadLevel(level)
+        if (isSurfaceReady) {
+            engine.loadLevel(level)
+        } else {
+            pendingLevel = level
+        }
     }
 
     @SuppressLint("ClickableViewAccessibility")
