@@ -104,7 +104,7 @@ class LevelEditorFragment : Fragment() {
                 return@setOnClickListener
             }
 
-            val breakableCount = grid.sumOf { row -> row.count { it.type in 1..2 } }
+            val breakableCount = grid.fold(0) { acc, row -> acc + row.count { it.type in 1..2 } }
             if (breakableCount < 5) {
                 Toast.makeText(requireContext(), "Add at least 5 breakable bricks", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
@@ -149,9 +149,9 @@ class LevelEditorFragment : Fragment() {
             cols = cols,
             grid = grid.map { row -> row.toList() },
             difficulty = binding.sliderDifficulty.value.toInt(),
-            targetScore = grid.sumOf { row ->
-                row.sumOf { brick ->
-                    when (brick.type) {
+            targetScore = grid.fold(0) { acc, row ->
+                acc + row.fold(0) { rowAcc, brick ->
+                    rowAcc + when (brick.type) {
                         1 -> 100
                         2 -> 250
                         else -> 0
@@ -171,7 +171,7 @@ class LevelEditorFragment : Fragment() {
     }
 
     private fun updateBrickCount() {
-        val count = grid.sumOf { row -> row.count { it.type != 0 } }
+        val count = grid.fold(0) { acc, row -> acc + row.count { it.type != 0 } }
         binding.tvBrickCount.text = "Bricks: $count"
     }
 
