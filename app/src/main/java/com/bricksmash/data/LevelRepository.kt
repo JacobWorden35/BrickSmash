@@ -10,6 +10,10 @@ import kotlinx.coroutines.tasks.await
 /**
  * Repository for community level operations.
  * Handles publishing, browsing, and downloading user-created levels.
+ *
+ * Grid storage: The 2D brick grid is flattened to a 1D list for Firestore
+ * (Firestore does not support nested arrays). Rows/cols metadata is used
+ * to reconstruct the 2D grid on read.
  */
 class LevelRepository {
 
@@ -19,11 +23,18 @@ class LevelRepository {
 
     /**
      * Publishes a user-created level to the community library.
+     * Flattens the 2D grid into a 1D list to comply with Firestore's
+     * restriction against nested arrays.
      */
     suspend fun publishLevel(level: LevelData): Result<String> {
         val user = auth.currentUser ?: return Result.failure(Exception("Not logged in"))
 
         return try {
+            // Flatten 2D grid to 1D list — Firestore does not support nested arrays
+            val flatGrid = level.grid.flatMap { row ->
+                row.map { brick -> mapOf("type" to brick.type, "color" to brick.color) }
+            }
+
             val levelMap = mapOf(
                 "name" to level.name,
                 "author" to (user.displayName ?: "Anonymous"),
@@ -31,9 +42,7 @@ class LevelRepository {
                 "difficulty" to level.difficulty,
                 "rows" to level.rows,
                 "cols" to level.cols,
-                "grid" to level.grid.map { row ->
-                    row.map { brick -> mapOf("type" to brick.type, "color" to brick.color) }
-                },
+                "grid" to flatGrid,
                 "targetScore" to level.targetScore,
                 "ballSpeedMultiplier" to level.ballSpeedMultiplier,
                 "playCount" to 0,
@@ -50,6 +59,7 @@ class LevelRepository {
 
     /**
      * Fetches community levels sorted by the given criteria.
+     * Reconstructs the 2D grid from the flattened 1D list using rows/cols.
      */
     suspend fun getCommunityLevels(
         sortBy: SortOption = SortOption.NEWEST,
@@ -67,25 +77,28 @@ class LevelRepository {
             val levels = snapshot.documents.mapNotNull { doc ->
                 try {
                     val data = doc.data ?: return@mapNotNull null
-                    @Suppress("UNCHECKED_CAST")
-                    val gridRaw = data["grid"] as? List<List<Map<String, Any>>> ?: return@mapNotNull null
+                    val rows = (data["rows"] as? Long)?.toInt() ?: 8
+                    val cols = (data["cols"] as? Long)?.toInt() ?: 10
 
-                    val grid = gridRaw.map { row ->
-                        row.map { brick ->
-                            BrickData(
-                                type = (brick["type"] as? Long)?.toInt() ?: 0,
-                                color = brick["color"] as? String ?: "#FF5722"
-                            )
-                        }
+                    // Read flat grid and chunk back into 2D
+                    @Suppress("UNCHECKED_CAST")
+                    val flatGrid = data["grid"] as? List<Map<String, Any>> ?: return@mapNotNull null
+
+                    val brickList = flatGrid.map { brick ->
+                        BrickData(
+                            type = (brick["type"] as? Long)?.toInt() ?: 0,
+                            color = brick["color"] as? String ?: "#FF5722"
+                        )
                     }
+                    val grid = brickList.chunked(cols)
 
                     LevelData(
                         id = doc.id,
                         name = data["name"] as? String ?: "Untitled",
                         author = data["author"] as? String ?: "Unknown",
                         difficulty = (data["difficulty"] as? Long)?.toInt() ?: 1,
-                        rows = (data["rows"] as? Long)?.toInt() ?: 8,
-                        cols = (data["cols"] as? Long)?.toInt() ?: 10,
+                        rows = rows,
+                        cols = cols,
                         grid = grid,
                         targetScore = (data["targetScore"] as? Long)?.toInt() ?: 1000,
                         ballSpeedMultiplier = (data["ballSpeedMultiplier"] as? Double)?.toFloat() ?: 1.0f,

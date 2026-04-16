@@ -3,6 +3,7 @@ package com.bricksmash.data
 import com.bricksmash.model.UserProfile
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 
@@ -23,13 +24,19 @@ class UserRepository {
         get() = auth.currentUser != null
 
     /**
-     * Registers a new user with email and password, then creates
-     * their Firestore profile document.
+     * Registers a new user with email and password, then sets
+     * the display name on both the Auth profile and Firestore document.
      */
     suspend fun register(email: String, password: String, displayName: String): Result<FirebaseUser> {
         return try {
             val result = auth.createUserWithEmailAndPassword(email, password).await()
             val user = result.user ?: return Result.failure(Exception("Registration failed"))
+
+            // Set display name on the Firebase Auth profile
+            val profileUpdates = UserProfileChangeRequest.Builder()
+                .setDisplayName(displayName)
+                .build()
+            user.updateProfile(profileUpdates).await()
 
             // Create user profile in Firestore
             val profile = UserProfile(
