@@ -12,7 +12,7 @@ import com.bricksmash.model.LevelData
  *
  * HUD layout:
  *  - Top center: Level title (large)
- *  - Right side (vertical stack above paddle): active power-up indicators with shrink bars
+ *  - Under paddle (centered horizontally): active power-up indicators with shrink bars
  *  - Bottom left: Score + combo multiplier
  *  - Bottom right: Lives as balls (visual)
  *
@@ -164,7 +164,6 @@ class GameEngine {
 
         paddle.reset(screenWidth, screenHeight)
 
-        // Grid offset — leave room for large title at top
         val gridTop = statusBarHeight + 140f
         val gridHeight = screenHeight * 0.38f
         val brickWidth = screenWidth / level.cols
@@ -384,7 +383,7 @@ class GameEngine {
         balls.forEach { it.draw(canvas) }
 
         drawTitle(canvas)
-        drawSidePowerUps(canvas)
+        drawPowerUpsUnderPaddle(canvas)
         drawBottomBar(canvas)
 
         if (isPaused) drawOverlay(canvas, "PAUSED", "Tap to resume")
@@ -409,32 +408,33 @@ class GameEngine {
     }
 
     /**
-     * Draws active power-up indicators as a vertical stack on the right
-     * side of the screen. Each has a shrinking progress bar.
+     * Draws active power-up indicators as a horizontal row centered
+     * underneath the paddle. Each has a shrinking progress bar.
      */
-    private fun drawSidePowerUps(canvas: Canvas) {
+    private fun drawPowerUpsUnderPaddle(canvas: Canvas) {
         if (activePowerUps.isEmpty()) return
 
         val now = System.currentTimeMillis()
         val indicatorWidth = 100f
         val indicatorHeight = 36f
         val spacing = 10f
-        val rightMargin = 16f
-        val startX = screenWidth - indicatorWidth - rightMargin
-        // Start stacking from the middle of the screen downward
-        var y = screenHeight * 0.45f
+        val totalWidth = activePowerUps.size * indicatorWidth +
+                (activePowerUps.size - 1).coerceAtLeast(0) * spacing
+        var x = (screenWidth - totalWidth) / 2f
+        // Position just below the paddle, above the bottom HUD
+        val y = paddle.y + paddle.height + 20f
 
         for (active in activePowerUps) {
             val progress = ((active.endTime - now).toFloat() / active.type.durationMs.toFloat())
                 .coerceIn(0f, 1f)
 
             // Background capsule
-            val bgRect = RectF(startX, y, startX + indicatorWidth, y + indicatorHeight)
+            val bgRect = RectF(x, y, x + indicatorWidth, y + indicatorHeight)
             canvas.drawRoundRect(bgRect, 8f, 8f, powerUpBarBgPaint)
 
             // Shrinking fill bar
             powerUpBarFillPaint.color = active.type.color
-            val fillRect = RectF(startX, y, startX + indicatorWidth * progress, y + indicatorHeight)
+            val fillRect = RectF(x, y, x + indicatorWidth * progress, y + indicatorHeight)
             canvas.drawRoundRect(fillRect, 8f, 8f, powerUpBarFillPaint)
 
             // Label
@@ -444,9 +444,9 @@ class GameEngine {
                 PowerUp.Type.SLOW_MOTION -> "SLOW"
                 else -> ""
             }
-            canvas.drawText(label, startX + indicatorWidth / 2f, y + indicatorHeight * 0.7f, powerUpLabelPaint)
+            canvas.drawText(label, x + indicatorWidth / 2f, y + indicatorHeight * 0.7f, powerUpLabelPaint)
 
-            y += indicatorHeight + spacing
+            x += indicatorWidth + spacing
         }
     }
 
@@ -461,7 +461,6 @@ class GameEngine {
         // --- LEFT: Score + combo ---
         canvas.drawText("SCORE", sideMargin, bottomY - 48f, scoreLabelPaint)
 
-        // Pulse the score if we just got a combo hit
         val timeSincePulse = System.currentTimeMillis() - comboPulseTime
         val scoreScale = if (timeSincePulse < 200 && comboMultiplier > 1.0f) {
             1.0f + (200 - timeSincePulse) / 2000f
@@ -469,7 +468,6 @@ class GameEngine {
         scorePaint.textSize = 44f * scoreScale
         canvas.drawText("$score", sideMargin, bottomY - 10f, scorePaint)
 
-        // Combo multiplier under score
         if (comboMultiplier > 1.0f) {
             val multiplierText = "x%.1f combo".format(comboMultiplier)
             comboPaint.color = colorForCombo(comboMultiplier)
