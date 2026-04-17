@@ -46,19 +46,17 @@ class Paddle(
 
     /**
      * Initializes the paddle position on screen.
+     * Positioned well above the screen bottom to leave room for the
+     * score/lives HUD underneath.
      */
     fun init(screenW: Float, screenH: Float) {
         screenWidth = screenW
-        normalWidth = screenW * 0.22f // ~22% of screen width
+        normalWidth = screenW * 0.22f
         width = normalWidth
         x = screenW / 2f
-        y = screenH - 120f  // Position near the bottom with some margin
+        y = screenH - 200f  // Increased from 120f to clear the bottom HUD
     }
 
-    /**
-     * Moves the paddle to follow the user's touch x position.
-     * Clamps to screen edges.
-     */
     fun moveTo(touchX: Float) {
         x = touchX.coerceIn(width / 2f, screenWidth - width / 2f)
     }
@@ -70,11 +68,10 @@ class Paddle(
         val bottom = y + height / 2f
         val cornerRadius = height / 2f
 
-        // Gradient fill
         paint.shader = LinearGradient(
             left, top, left, bottom,
-            Color.rgb(100, 181, 246),  // Light blue
-            Color.rgb(30, 136, 229),   // Darker blue
+            Color.rgb(100, 181, 246),
+            Color.rgb(30, 136, 229),
             Shader.TileMode.CLAMP
         )
 

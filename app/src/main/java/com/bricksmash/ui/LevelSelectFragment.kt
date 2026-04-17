@@ -6,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
@@ -21,30 +22,25 @@ import kotlinx.coroutines.launch
 /**
  * Screen for selecting which level to play.
  * Shows built-in levels and community levels in separate tabs.
+ * Uses a shared GameViewModel to pass the selected level to the Game fragment.
  */
 class LevelSelectFragment : Fragment() {
 
     private var _binding: FragmentLevelSelectBinding? = null
     private val binding get() = _binding!!
     private val levelRepo = LevelRepository()
-    private val adapter = LevelAdapter { levelIndex, level ->
-        if (level.isCommunity) {
-            // For community levels, pass the level index offset by built-in count
-            // For now, navigate with a special index
-            // TODO: pass community level data through ViewModel
-            val bundle = Bundle().apply {
-                putInt("levelIndex", levelIndex)
-            }
-            findNavController().navigate(R.id.action_levelSelect_to_game, bundle)
-        } else {
-            val bundle = Bundle().apply {
-                putInt("levelIndex", levelIndex)
-            }
-            findNavController().navigate(R.id.action_levelSelect_to_game, bundle)
-        }
-    }
+    private val gameViewModel: GameViewModel by activityViewModels()
 
     private var builtInLevels = listOf<LevelData>()
+
+    private val adapter = LevelAdapter { position, level ->
+        if (level.isCommunity) {
+            gameViewModel.setCommunityLevel(level)
+        } else {
+            gameViewModel.setBuiltInLevel(level, position)
+        }
+        findNavController().navigate(R.id.action_levelSelect_to_game)
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -62,7 +58,6 @@ class LevelSelectFragment : Fragment() {
         binding.rvLevels.layoutManager = GridLayoutManager(requireContext(), 3)
         binding.rvLevels.adapter = adapter
 
-        // Tab switching between Built-in and Community
         binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
                 when (tab?.position) {
@@ -74,7 +69,6 @@ class LevelSelectFragment : Fragment() {
             override fun onTabReselected(tab: TabLayout.Tab?) {}
         })
 
-        // Default to built-in levels
         showBuiltInLevels()
     }
 
@@ -113,10 +107,6 @@ class LevelSelectFragment : Fragment() {
         _binding = null
     }
 
-    /**
-     * Adapter for the level selection grid.
-     * Handles both built-in and community levels.
-     */
     private class LevelAdapter(
         private val onClick: (Int, LevelData) -> Unit
     ) : RecyclerView.Adapter<LevelAdapter.ViewHolder>() {

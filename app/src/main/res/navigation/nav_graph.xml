@@ -44,13 +44,7 @@
         android:id="@+id/gameFragment"
         android:name="com.bricksmash.ui.GameFragment"
         android:label="Game"
-        tools:layout="@layout/fragment_game">
-
-        <argument
-            android:name="levelIndex"
-            app:argType="integer"
-            android:defaultValue="0" />
-    </fragment>
+        tools:layout="@layout/fragment_game" />
 
     <fragment
         android:id="@+id/leaderboardFragment"

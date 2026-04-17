@@ -32,13 +32,11 @@ class UserRepository {
             val result = auth.createUserWithEmailAndPassword(email, password).await()
             val user = result.user ?: return Result.failure(Exception("Registration failed"))
 
-            // Set display name on the Firebase Auth profile
             val profileUpdates = UserProfileChangeRequest.Builder()
                 .setDisplayName(displayName)
                 .build()
             user.updateProfile(profileUpdates).await()
 
-            // Create user profile in Firestore
             val profile = UserProfile(
                 uid = user.uid,
                 displayName = displayName,
@@ -52,9 +50,6 @@ class UserRepository {
         }
     }
 
-    /**
-     * Signs in with email and password.
-     */
     suspend fun login(email: String, password: String): Result<FirebaseUser> {
         return try {
             val result = auth.signInWithEmailAndPassword(email, password).await()
@@ -65,16 +60,10 @@ class UserRepository {
         }
     }
 
-    /**
-     * Signs out the current user.
-     */
     fun logout() {
         auth.signOut()
     }
 
-    /**
-     * Retrieves the current user's profile from Firestore.
-     */
     suspend fun getUserProfile(): Result<UserProfile> {
         val uid = currentUser?.uid ?: return Result.failure(Exception("Not logged in"))
         return try {
@@ -91,8 +80,32 @@ class UserRepository {
     }
 
     /**
-     * Updates the user's cumulative score and level progress.
+     * Updates the user's display name on both the Firebase Auth
+     * profile (for score submissions) and the Firestore user document.
+     *
+     * Note: existing leaderboard entries are NOT retroactively updated
+     * because they capture the name at time of submission.
      */
+    suspend fun updateDisplayName(newName: String): Result<Unit> {
+        val user = currentUser ?: return Result.failure(Exception("Not logged in"))
+        return try {
+            // Update Firebase Auth profile
+            val profileUpdates = UserProfileChangeRequest.Builder()
+                .setDisplayName(newName)
+                .build()
+            user.updateProfile(profileUpdates).await()
+
+            // Update Firestore user document
+            usersCollection.document(user.uid)
+                .update("displayName", newName)
+                .await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun updateProgress(additionalScore: Int, levelCompleted: Int): Result<Unit> {
         val uid = currentUser?.uid ?: return Result.failure(Exception("Not logged in"))
         return try {

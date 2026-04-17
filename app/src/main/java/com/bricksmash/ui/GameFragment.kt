@@ -5,18 +5,20 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
-import com.bricksmash.R
 import com.bricksmash.data.LeaderboardRepository
 import com.bricksmash.data.UserRepository
 import com.bricksmash.databinding.FragmentGameBinding
 import com.bricksmash.game.LevelManager
+import com.bricksmash.model.LevelData
 import kotlinx.coroutines.launch
 
 /**
  * Fragment that hosts the actual game.
- * Manages game lifecycle, level loading, and score submission.
+ * Reads the selected level from the shared GameViewModel so both built-in
+ * and community levels can be played without index-based lookups.
  */
 class GameFragment : Fragment() {
 
@@ -24,7 +26,9 @@ class GameFragment : Fragment() {
     private val binding get() = _binding!!
     private val leaderboardRepo = LeaderboardRepository()
     private val userRepo = UserRepository()
-    private var currentLevelIndex = 0
+    private val gameViewModel: GameViewModel by activityViewModels()
+
+    private var currentLevel: LevelData? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -36,25 +40,26 @@ class GameFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        currentLevelIndex = arguments?.getInt("levelIndex", 0) ?: 0
-        val levelManager = LevelManager(requireContext())
-        val level = levelManager.getLevel(currentLevelIndex)
+        currentLevel = gameViewModel.selectedLevel
+        val level = currentLevel
+        if (level == null) {
+            // No level selected — should not normally happen, but bail safely
+            findNavController().navigateUp()
+            return
+        }
 
-        if (level != null) {
-            binding.gameView.loadLevel(level)
+        binding.gameView.loadLevel(level)
 
-            // Set up game event callbacks
-            binding.gameView.engine.onLevelComplete = { score ->
-                activity?.runOnUiThread {
-                    showLevelComplete(score)
-                    submitScore(score, level.id, level.name)
-                }
+        binding.gameView.engine.onLevelComplete = { score ->
+            activity?.runOnUiThread {
+                showLevelComplete(score)
+                submitScore(score, level.id, level.name)
             }
+        }
 
-            binding.gameView.engine.onGameOver = { score ->
-                activity?.runOnUiThread {
-                    showGameOver(score)
-                }
+        binding.gameView.engine.onGameOver = { score ->
+            activity?.runOnUiThread {
+                showGameOver(score)
             }
         }
 
@@ -71,16 +76,24 @@ class GameFragment : Fragment() {
         binding.overlayComplete.visibility = View.VISIBLE
         binding.tvCompleteScore.text = "Score: $score"
 
-        binding.btnNextLevel.setOnClickListener {
-            binding.overlayComplete.visibility = View.GONE
-            currentLevelIndex++
-            val levelManager = LevelManager(requireContext())
-            val nextLevel = levelManager.getLevel(currentLevelIndex)
-            if (nextLevel != null) {
-                binding.gameView.loadLevel(nextLevel)
-            } else {
-                findNavController().navigateUp()
+        // "Next Level" only makes sense for built-in levels
+        if (gameViewModel.builtInIndex >= 0) {
+            binding.btnNextLevel.visibility = View.VISIBLE
+            binding.btnNextLevel.setOnClickListener {
+                binding.overlayComplete.visibility = View.GONE
+                val nextIndex = gameViewModel.builtInIndex + 1
+                val levelManager = LevelManager(requireContext())
+                val nextLevel = levelManager.getLevel(nextIndex)
+                if (nextLevel != null) {
+                    gameViewModel.setBuiltInLevel(nextLevel, nextIndex)
+                    currentLevel = nextLevel
+                    binding.gameView.loadLevel(nextLevel)
+                } else {
+                    findNavController().navigateUp()
+                }
             }
+        } else {
+            binding.btnNextLevel.visibility = View.GONE
         }
 
         binding.btnBackToMenu.setOnClickListener {
@@ -94,11 +107,7 @@ class GameFragment : Fragment() {
 
         binding.btnRetry.setOnClickListener {
             binding.overlayGameOver.visibility = View.GONE
-            val levelManager = LevelManager(requireContext())
-            val level = levelManager.getLevel(currentLevelIndex)
-            if (level != null) {
-                binding.gameView.loadLevel(level)
-            }
+            currentLevel?.let { binding.gameView.loadLevel(it) }
         }
 
         binding.btnGameOverBack.setOnClickListener {
@@ -110,7 +119,10 @@ class GameFragment : Fragment() {
         if (!userRepo.isLoggedIn) return
         lifecycleScope.launch {
             leaderboardRepo.submitScore(score, levelId, levelName)
-            userRepo.updateProgress(score, currentLevelIndex)
+            // Only update progress for built-in levels
+            if (gameViewModel.builtInIndex >= 0) {
+                userRepo.updateProgress(score, gameViewModel.builtInIndex)
+            }
         }
     }
 

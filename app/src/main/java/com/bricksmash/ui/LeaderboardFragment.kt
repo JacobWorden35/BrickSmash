@@ -4,6 +4,8 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -11,12 +13,18 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bricksmash.R
 import com.bricksmash.data.LeaderboardRepository
 import com.bricksmash.databinding.FragmentLeaderboardBinding
+import com.bricksmash.game.LevelManager
+import com.bricksmash.model.LevelData
 import com.bricksmash.model.ScoreEntry
 import com.google.android.material.tabs.TabLayout
 
 /**
  * Displays the global and per-level leaderboards with
  * real-time updates from Firestore snapshot listeners.
+ *
+ * The "By Level" tab uses a dropdown to select which level
+ * to view scores for. Real-time listener is rebound each time
+ * the selection changes.
  */
 class LeaderboardFragment : Fragment() {
 
@@ -24,6 +32,7 @@ class LeaderboardFragment : Fragment() {
     private val binding get() = _binding!!
     private val leaderboardRepo = LeaderboardRepository()
     private val adapter = ScoreAdapter()
+    private var allLevels: List<LevelData> = emptyList()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -38,12 +47,42 @@ class LeaderboardFragment : Fragment() {
         binding.rvScores.layoutManager = LinearLayoutManager(requireContext())
         binding.rvScores.adapter = adapter
 
+        // Load level list for the dropdown
+        allLevels = LevelManager(requireContext()).loadBuiltInLevels()
+        val levelNames = allLevels.mapIndexed { i, lvl -> "${i + 1}. ${lvl.name}" }
+
+        val spinnerAdapter = ArrayAdapter(
+            requireContext(),
+            android.R.layout.simple_spinner_item,
+            levelNames
+        )
+        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        binding.spinnerLevel.adapter = spinnerAdapter
+
+        binding.spinnerLevel.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(
+                parent: AdapterView<*>?, view: View?, position: Int, id: Long
+            ) {
+                val selectedLevel = allLevels.getOrNull(position) ?: return
+                loadLevelScores(selectedLevel.id)
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
         // Tab switching between Global and Per-Level
         binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
                 when (tab?.position) {
-                    0 -> loadGlobalScores()
-                    1 -> loadLevelScores()
+                    0 -> {
+                        binding.spinnerLevel.visibility = View.GONE
+                        loadGlobalScores()
+                    }
+                    1 -> {
+                        binding.spinnerLevel.visibility = View.VISIBLE
+                        val selectedPos = binding.spinnerLevel.selectedItemPosition
+                        val level = allLevels.getOrNull(selectedPos) ?: allLevels.firstOrNull()
+                        level?.let { loadLevelScores(it.id) }
+                    }
                 }
             }
             override fun onTabUnselected(tab: TabLayout.Tab?) {}
@@ -55,6 +94,7 @@ class LeaderboardFragment : Fragment() {
 
     private fun loadGlobalScores() {
         binding.progressBar.visibility = View.VISIBLE
+        binding.tvEmpty.visibility = View.GONE
         leaderboardRepo.listenToLeaderboard(
             levelId = null,
             onUpdate = { scores ->
@@ -74,17 +114,23 @@ class LeaderboardFragment : Fragment() {
         )
     }
 
-    private fun loadLevelScores() {
-        // For simplicity, filter to first built-in level
-        // In a full implementation, you'd add a level picker
+    private fun loadLevelScores(levelId: String) {
         binding.progressBar.visibility = View.VISIBLE
+        binding.tvEmpty.visibility = View.GONE
+        adapter.submitList(emptyList())
+
         leaderboardRepo.listenToLeaderboard(
-            levelId = "builtin_1",
+            levelId = levelId,
             onUpdate = { scores ->
                 activity?.runOnUiThread {
                     binding.progressBar.visibility = View.GONE
                     adapter.submitList(scores)
-                    binding.tvEmpty.visibility = if (scores.isEmpty()) View.VISIBLE else View.GONE
+                    if (scores.isEmpty()) {
+                        binding.tvEmpty.text = "No scores yet. Be the first!"
+                        binding.tvEmpty.visibility = View.VISIBLE
+                    } else {
+                        binding.tvEmpty.visibility = View.GONE
+                    }
                 }
             },
             onError = { e ->
@@ -103,9 +149,6 @@ class LeaderboardFragment : Fragment() {
         _binding = null
     }
 
-    /**
-     * RecyclerView adapter for displaying score entries.
-     */
     private class ScoreAdapter : RecyclerView.Adapter<ScoreAdapter.ViewHolder>() {
         private var scores = listOf<ScoreEntry>()
 

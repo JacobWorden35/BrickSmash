@@ -3,14 +3,24 @@ package com.bricksmash.game
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.RectF
 import android.graphics.Typeface
-import com.bricksmash.model.BrickData
 import com.bricksmash.model.LevelData
 
 /**
  * The main game engine that manages all game state and objects.
- * It is responsible for updating positions, handling collisions,
- * managing power-ups, tracking score/lives, and drawing everything.
+ *
+ * HUD layout:
+ *  - Top center: Level title (large)
+ *  - Right side (vertical stack above paddle): active power-up indicators with shrink bars
+ *  - Bottom left: Score + combo multiplier
+ *  - Bottom right: Lives as balls (visual)
+ *
+ * Scoring model:
+ *  - Base points per brick (100 normal, 250 hardened)
+ *  - Combo multiplier: +0.1x per consecutive hit within 2s, capped at 5.0x
+ *  - Speed bonus at level end: max(0, 5000 - elapsed_seconds * 50)
+ *  - Life bonus at level end: +1000 per remaining life
  */
 class GameEngine {
 
@@ -42,22 +52,69 @@ class GameEngine {
     // Level info
     private var currentLevel: LevelData? = null
     private var totalBreakableBricks: Int = 0
+    private var levelStartTime: Long = 0L
+
+    // Scoring
+    private var comboMultiplier: Float = 1.0f
+    private var lastBrickHitTime: Long = 0L
+    private var comboPulseTime: Long = 0L
+    private val comboResetMs = 2000L
+    private val maxCombo = 5.0f
 
     // Power-up timers
-    private var widePaddleEndTime: Long = 0
-    private var fireballEndTime: Long = 0
-    private var slowMotionEndTime: Long = 0
+    private data class ActivePowerUp(val type: PowerUp.Type, val startTime: Long, val endTime: Long)
+    private val activePowerUps = mutableListOf<ActivePowerUp>()
 
-    // Paints for HUD
-    private val hudPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    // Paints
+    private val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE
-        textSize = 42f
+        textSize = 56f
+        textAlign = Paint.Align.CENTER
         typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
     }
 
-    private val hudSmallPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.argb(180, 255, 255, 255)
+    private val scorePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE
+        textSize = 44f
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+    }
+
+    private val scoreLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(160, 255, 255, 255)
+        textSize = 22f
+        letterSpacing = 0.1f
+    }
+
+    private val comboPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE
         textSize = 28f
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+    }
+
+    private val lifeBallPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE
+        style = Paint.Style.FILL
+    }
+
+    private val lifeBallGlowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(60, 255, 255, 255)
+        style = Paint.Style.FILL
+    }
+
+    private val powerUpLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE
+        textSize = 20f
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        textAlign = Paint.Align.CENTER
+    }
+
+    private val powerUpBarBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(100, 0, 0, 0)
+        style = Paint.Style.FILL
+    }
+
+    private val powerUpBarFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
     }
 
     private val overlayPaint = Paint().apply {
@@ -77,40 +134,39 @@ class GameEngine {
         textAlign = Paint.Align.CENTER
     }
 
-    // Callback for game events
+    // Callbacks
     var onLevelComplete: ((score: Int) -> Unit)? = null
     var onGameOver: ((score: Int) -> Unit)? = null
 
-    /**
-     * Initializes the game engine with screen dimensions.
-     */
     fun init(width: Float, height: Float) {
         screenWidth = width
         screenHeight = height
         paddle.init(width, height)
     }
 
-    /**
-     * Loads a level into the engine, creating brick objects from the LevelData grid.
-     */
     fun loadLevel(level: LevelData) {
         currentLevel = level
         bricks.clear()
         balls.clear()
         powerUps.clear()
         particles.clear()
+        activePowerUps.clear()
 
         score = 0
         lives = 3
         isGameOver = false
         isLevelComplete = false
         isPaused = false
+        comboMultiplier = 1.0f
+        lastBrickHitTime = 0L
+        comboPulseTime = 0L
+        levelStartTime = System.currentTimeMillis()
 
         paddle.reset(screenWidth, screenHeight)
 
-        // Create bricks from level data — offset below status bar + HUD
-        val gridTop = statusBarHeight + 80f
-        val gridHeight = screenHeight * 0.35f
+        // Grid offset — leave room for large title at top
+        val gridTop = statusBarHeight + 140f
+        val gridHeight = screenHeight * 0.38f
         val brickWidth = screenWidth / level.cols
         val brickHeight = gridHeight / level.rows
 
@@ -132,24 +188,17 @@ class GameEngine {
 
         totalBreakableBricks = bricks.count { it.type in 1..2 }
 
-        // Create initial ball sitting on paddle
-        val ball = Ball(
-            radius = 12f,
-            speed = 10f * level.ballSpeedMultiplier
-        )
+        val ball = Ball(radius = 12f, speed = 10f * level.ballSpeedMultiplier)
         balls.add(ball)
     }
 
-    /**
-     * Main update loop — called every frame by the game thread.
-     */
     fun update() {
         if (isPaused || isGameOver || isLevelComplete) return
 
         val now = System.currentTimeMillis()
         checkPowerUpTimers(now)
+        checkComboTimeout(now)
 
-        // If ball not launched yet, attach it to paddle
         val primaryBall = balls.firstOrNull() ?: return
         if (!primaryBall.isActive) {
             primaryBall.x = paddle.x
@@ -157,35 +206,34 @@ class GameEngine {
             return
         }
 
-        // Update all balls
         val ballsToRemove = mutableListOf<Ball>()
         for (ball in balls) {
             if (!ball.isActive) continue
 
-            // Apply slow motion
-            if (now < slowMotionEndTime) {
+            val slowMotionActive = activePowerUps.any { it.type == PowerUp.Type.SLOW_MOTION && now < it.endTime }
+            if (slowMotionActive) {
                 ball.x += ball.dx * 0.5f
                 ball.y += ball.dy * 0.5f
             } else {
                 ball.update()
             }
 
-            // Wall collisions
             if (ball.handleWallCollisions(screenWidth, screenHeight)) {
                 ballsToRemove.add(ball)
             }
 
-            // Paddle collision
-            ball.handlePaddleCollision(paddle)
+            if (ball.handlePaddleCollision(paddle)) {
+                resetCombo()
+            }
 
-            // Brick collisions
             val collision = CollisionDetector.checkBallBrickCollision(ball, bricks)
             if (collision != null) {
                 val destroyed = CollisionDetector.applyCollision(ball, collision)
                 if (destroyed) {
-                    score += collision.brick.getPoints()
+                    registerBrickHit(now)
+                    val points = (collision.brick.getPoints() * comboMultiplier).toInt()
+                    score += points
 
-                    // Particle effect
                     particles.add(
                         ParticleEffect(
                             collision.brick.rect.centerX(),
@@ -194,7 +242,6 @@ class GameEngine {
                         )
                     )
 
-                    // Maybe spawn power-up
                     PowerUp.maybeSpawn(
                         collision.brick.rect.centerX(),
                         collision.brick.rect.centerY()
@@ -203,17 +250,15 @@ class GameEngine {
             }
         }
 
-        // Remove lost balls
         balls.removeAll(ballsToRemove)
 
-        // If all balls are gone, lose a life
         if (balls.none { it.isActive }) {
             lives--
+            resetCombo()
             if (lives <= 0) {
                 isGameOver = true
                 onGameOver?.invoke(score)
             } else {
-                // Spawn a new ball on the paddle
                 val newBall = Ball(
                     radius = 12f,
                     speed = 10f * (currentLevel?.ballSpeedMultiplier ?: 1.0f)
@@ -222,7 +267,6 @@ class GameEngine {
             }
         }
 
-        // Update power-ups
         val powerUpsToRemove = mutableListOf<PowerUp>()
         for (pu in powerUps) {
             if (pu.update(screenHeight)) {
@@ -236,21 +280,46 @@ class GameEngine {
         }
         powerUps.removeAll(powerUpsToRemove)
 
-        // Update particles
         particles.forEach { it.update() }
         particles.removeAll { it.isFinished }
 
-        // Check level completion
         val remainingBreakable = bricks.count { it.isAlive && it.type in 1..2 }
         if (remainingBreakable == 0 && totalBreakableBricks > 0) {
+            val elapsedSeconds = (now - levelStartTime) / 1000L
+            val speedBonus = maxOf(0L, 5000L - elapsedSeconds * 50L).toInt()
+            val lifeBonus = lives * 1000
+            score += speedBonus + lifeBonus
+
             isLevelComplete = true
             onLevelComplete?.invoke(score)
         }
     }
 
-    /**
-     * Applies a collected power-up effect.
-     */
+    // -- Combo handling -------------------------------------------------------
+
+    private fun registerBrickHit(now: Long) {
+        comboMultiplier = if (lastBrickHitTime != 0L && (now - lastBrickHitTime) <= comboResetMs) {
+            (comboMultiplier + 0.1f).coerceAtMost(maxCombo)
+        } else {
+            1.1f
+        }
+        lastBrickHitTime = now
+        comboPulseTime = now
+    }
+
+    private fun checkComboTimeout(now: Long) {
+        if (lastBrickHitTime != 0L && (now - lastBrickHitTime) > comboResetMs) {
+            resetCombo()
+        }
+    }
+
+    private fun resetCombo() {
+        comboMultiplier = 1.0f
+        lastBrickHitTime = 0L
+    }
+
+    // -- Power-up handling ----------------------------------------------------
+
     private fun applyPowerUp(powerUp: PowerUp, now: Long) {
         when (powerUp.type) {
             PowerUp.Type.MULTI_BALL -> {
@@ -262,33 +331,36 @@ class GameEngine {
             }
             PowerUp.Type.WIDE_PADDLE -> {
                 paddle.isWide = true
-                widePaddleEndTime = now + powerUp.type.durationMs
+                addOrRefreshPowerUp(powerUp.type, now)
             }
             PowerUp.Type.FIREBALL -> {
                 balls.forEach { it.isFireball = true }
-                fireballEndTime = now + powerUp.type.durationMs
+                addOrRefreshPowerUp(powerUp.type, now)
             }
             PowerUp.Type.SLOW_MOTION -> {
-                slowMotionEndTime = now + powerUp.type.durationMs
+                addOrRefreshPowerUp(powerUp.type, now)
             }
         }
     }
 
-    /**
-     * Checks if timed power-ups have expired.
-     */
-    private fun checkPowerUpTimers(now: Long) {
-        if (now >= widePaddleEndTime && paddle.isWide) {
-            paddle.isWide = false
-        }
-        if (now >= fireballEndTime) {
-            balls.forEach { it.isFireball = false }
-        }
+    private fun addOrRefreshPowerUp(type: PowerUp.Type, now: Long) {
+        activePowerUps.removeAll { it.type == type }
+        activePowerUps.add(ActivePowerUp(type, now, now + type.durationMs))
     }
 
-    /**
-     * Launches the ball from the paddle (called on first tap).
-     */
+    private fun checkPowerUpTimers(now: Long) {
+        val expired = activePowerUps.filter { now >= it.endTime }
+        for (exp in expired) {
+            when (exp.type) {
+                PowerUp.Type.WIDE_PADDLE -> paddle.isWide = false
+                PowerUp.Type.FIREBALL -> balls.forEach { it.isFireball = false }
+                PowerUp.Type.SLOW_MOTION -> { }
+                PowerUp.Type.MULTI_BALL -> { }
+            }
+        }
+        activePowerUps.removeAll(expired)
+    }
+
     fun launchBall() {
         val primaryBall = balls.firstOrNull() ?: return
         if (!primaryBall.isActive) {
@@ -296,90 +368,134 @@ class GameEngine {
         }
     }
 
-    /**
-     * Handles touch events for paddle movement.
-     */
     fun onTouchMove(x: Float) {
         paddle.moveTo(x)
     }
 
-    /**
-     * Draws all game objects and the HUD.
-     */
+    // -- Drawing --------------------------------------------------------------
+
     fun draw(canvas: Canvas) {
-        // Background
         canvas.drawColor(Color.rgb(18, 18, 32))
 
-        // Draw bricks
         bricks.forEach { it.draw(canvas) }
-
-        // Draw particles
         particles.forEach { it.draw(canvas) }
-
-        // Draw power-ups
         powerUps.forEach { it.draw(canvas) }
-
-        // Draw paddle
         paddle.draw(canvas)
-
-        // Draw balls
         balls.forEach { it.draw(canvas) }
 
-        // Draw HUD
-        drawHUD(canvas)
+        drawTitle(canvas)
+        drawSidePowerUps(canvas)
+        drawBottomBar(canvas)
 
-        // Draw overlays
         if (isPaused) drawOverlay(canvas, "PAUSED", "Tap to resume")
         if (isGameOver) drawOverlay(canvas, "GAME OVER", "Score: $score")
-        if (isLevelComplete) drawOverlay(canvas, "LEVEL CLEAR!", "Score: $score")
+        if (isLevelComplete) {
+            val elapsedSeconds = (System.currentTimeMillis() - levelStartTime) / 1000L
+            drawOverlay(canvas, "LEVEL CLEAR!", "Score: $score  •  Time: ${elapsedSeconds}s")
+        }
 
-        // Draw "Tap to launch" hint
         val primaryBall = balls.firstOrNull()
         if (primaryBall != null && !primaryBall.isActive && !isGameOver && !isLevelComplete) {
             drawOverlay(canvas, "TAP TO LAUNCH", "Move paddle with touch")
         }
     }
 
-    private fun drawHUD(canvas: Canvas) {
-        val hudTop = statusBarHeight + 10f
-
-        // Score
-        canvas.drawText("Score: $score", 20f, hudTop, hudPaint)
-
-        // Lives
-        val livesText = "Lives: $lives"
-        val livesWidth = hudPaint.measureText(livesText)
-        canvas.drawText(livesText, screenWidth - livesWidth - 20f, hudTop, hudPaint)
-
-        // Level name
+    /** Draws the level title at the top center. */
+    private fun drawTitle(canvas: Canvas) {
+        val titleY = statusBarHeight + 80f
         currentLevel?.let {
-            canvas.drawText(it.name, 20f, hudTop + 36f, hudSmallPaint)
+            canvas.drawText(it.name, screenWidth / 2f, titleY, titlePaint)
+        }
+    }
+
+    /**
+     * Draws active power-up indicators as a vertical stack on the right
+     * side of the screen. Each has a shrinking progress bar.
+     */
+    private fun drawSidePowerUps(canvas: Canvas) {
+        if (activePowerUps.isEmpty()) return
+
+        val now = System.currentTimeMillis()
+        val indicatorWidth = 100f
+        val indicatorHeight = 36f
+        val spacing = 10f
+        val rightMargin = 16f
+        val startX = screenWidth - indicatorWidth - rightMargin
+        // Start stacking from the middle of the screen downward
+        var y = screenHeight * 0.45f
+
+        for (active in activePowerUps) {
+            val progress = ((active.endTime - now).toFloat() / active.type.durationMs.toFloat())
+                .coerceIn(0f, 1f)
+
+            // Background capsule
+            val bgRect = RectF(startX, y, startX + indicatorWidth, y + indicatorHeight)
+            canvas.drawRoundRect(bgRect, 8f, 8f, powerUpBarBgPaint)
+
+            // Shrinking fill bar
+            powerUpBarFillPaint.color = active.type.color
+            val fillRect = RectF(startX, y, startX + indicatorWidth * progress, y + indicatorHeight)
+            canvas.drawRoundRect(fillRect, 8f, 8f, powerUpBarFillPaint)
+
+            // Label
+            val label = when (active.type) {
+                PowerUp.Type.WIDE_PADDLE -> "WIDE"
+                PowerUp.Type.FIREBALL -> "FIRE"
+                PowerUp.Type.SLOW_MOTION -> "SLOW"
+                else -> ""
+            }
+            canvas.drawText(label, startX + indicatorWidth / 2f, y + indicatorHeight * 0.7f, powerUpLabelPaint)
+
+            y += indicatorHeight + spacing
+        }
+    }
+
+    /**
+     * Draws the bottom bar below the paddle — score+combo on the left,
+     * lives as ball icons on the right.
+     */
+    private fun drawBottomBar(canvas: Canvas) {
+        val bottomY = screenHeight - 50f
+        val sideMargin = 24f
+
+        // --- LEFT: Score + combo ---
+        canvas.drawText("SCORE", sideMargin, bottomY - 48f, scoreLabelPaint)
+
+        // Pulse the score if we just got a combo hit
+        val timeSincePulse = System.currentTimeMillis() - comboPulseTime
+        val scoreScale = if (timeSincePulse < 200 && comboMultiplier > 1.0f) {
+            1.0f + (200 - timeSincePulse) / 2000f
+        } else 1.0f
+        scorePaint.textSize = 44f * scoreScale
+        canvas.drawText("$score", sideMargin, bottomY - 10f, scorePaint)
+
+        // Combo multiplier under score
+        if (comboMultiplier > 1.0f) {
+            val multiplierText = "x%.1f combo".format(comboMultiplier)
+            comboPaint.color = colorForCombo(comboMultiplier)
+            val scoreWidth = scorePaint.measureText("$score")
+            canvas.drawText(multiplierText, sideMargin + scoreWidth + 16f, bottomY - 16f, comboPaint)
         }
 
-        // Active power-up indicators
-        val now = System.currentTimeMillis()
-        var indicatorX = screenWidth - 20f
-        if (paddle.isWide && now < widePaddleEndTime) {
-            val text = "WIDE"
-            indicatorX -= hudSmallPaint.measureText(text)
-            hudSmallPaint.color = PowerUp.Type.WIDE_PADDLE.color
-            canvas.drawText(text, indicatorX, hudTop + 36f, hudSmallPaint)
-            indicatorX -= 16f
+        // --- RIGHT: Lives as balls ---
+        val ballRadius = 14f
+        val ballSpacing = 10f
+        val totalLivesWidth = (lives * (ballRadius * 2f)) + ((lives - 1).coerceAtLeast(0) * ballSpacing)
+        var ballX = screenWidth - sideMargin - totalLivesWidth + ballRadius
+        val ballY = bottomY - 20f
+
+        for (i in 0 until lives) {
+            canvas.drawCircle(ballX, ballY, ballRadius * 1.6f, lifeBallGlowPaint)
+            canvas.drawCircle(ballX, ballY, ballRadius, lifeBallPaint)
+            ballX += ballRadius * 2f + ballSpacing
         }
-        if (now < fireballEndTime) {
-            val text = "FIRE"
-            indicatorX -= hudSmallPaint.measureText(text)
-            hudSmallPaint.color = PowerUp.Type.FIREBALL.color
-            canvas.drawText(text, indicatorX, hudTop + 36f, hudSmallPaint)
-            indicatorX -= 16f
-        }
-        if (now < slowMotionEndTime) {
-            val text = "SLOW"
-            indicatorX -= hudSmallPaint.measureText(text)
-            hudSmallPaint.color = PowerUp.Type.SLOW_MOTION.color
-            canvas.drawText(text, indicatorX, hudTop + 36f, hudSmallPaint)
-        }
-        hudSmallPaint.color = Color.argb(180, 255, 255, 255) // reset
+    }
+
+    private fun colorForCombo(mult: Float): Int = when {
+        mult >= 4.0f -> Color.rgb(244, 67, 54)
+        mult >= 3.0f -> Color.rgb(255, 152, 0)
+        mult >= 2.0f -> Color.rgb(255, 235, 59)
+        else -> Color.WHITE
     }
 
     private fun drawOverlay(canvas: Canvas, title: String, subtitle: String) {
