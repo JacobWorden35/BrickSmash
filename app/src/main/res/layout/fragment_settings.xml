@@ -1,142 +1,156 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView
+<androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background_dark">
+    android:background="@color/background_dark"
+    android:fitsSystemWindows="true">
 
-    <LinearLayout
-        android:layout_width="match_parent"
+    <TextView
+        android:id="@+id/tvHeader"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="24dp">
+        android:text="Settings"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:textColor="@color/text_primary"
+        android:layout_marginTop="16dp"
+        android:layout_marginStart="16dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Settings"
-            android:textSize="28sp"
-            android:textStyle="bold"
-            android:textColor="@color/text_primary"
-            android:layout_marginBottom="24dp" />
+    <ScrollView
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
+        app:layout_constraintTop_toBottomOf="@id/tvHeader"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- Account section — only shown if logged in -->
         <LinearLayout
-            android:id="@+id/accountSection"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:visibility="gone">
+            android:padding="24dp">
+
+            <LinearLayout
+                android:id="@+id/accountSection"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Account"
+                    android:textSize="14sp"
+                    android:textColor="@color/text_secondary"
+                    android:letterSpacing="0.1"
+                    android:textAllCaps="true"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/tvCurrentName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="16sp"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginBottom="12dp" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/tilDisplayName"
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Display Name">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etDisplayName"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="textPersonName" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnUpdateName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Update Name"
+                    app:cornerRadius="20dp"
+                    android:layout_marginTop="8dp" />
+
+                <ProgressBar
+                    android:id="@+id/progressBarName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone"
+                    android:layout_gravity="center"
+                    android:layout_marginTop="8dp" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#333"
+                    android:layout_marginVertical="24dp" />
+            </LinearLayout>
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Account"
+                android:text="Gameplay"
                 android:textSize="14sp"
                 android:textColor="@color/text_secondary"
                 android:letterSpacing="0.1"
                 android:textAllCaps="true"
                 android:layout_marginBottom="8dp" />
 
-            <TextView
-                android:id="@+id/tvCurrentName"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="16sp"
-                android:textColor="@color/text_primary"
-                android:layout_marginBottom="12dp" />
-
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/tilDisplayName"
-                style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/switchSound"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Display Name">
+                android:text="Sound Effects"
+                android:textColor="@color/text_primary"
+                android:textSize="16sp"
+                android:padding="12dp" />
 
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/etDisplayName"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:inputType="textPersonName" />
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnUpdateName"
-                android:layout_width="wrap_content"
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/switchVibration"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Update Name"
-                app:cornerRadius="20dp"
-                android:layout_marginTop="8dp" />
+                android:text="Vibration"
+                android:textColor="@color/text_primary"
+                android:textSize="16sp"
+                android:padding="12dp" />
 
-            <ProgressBar
-                android:id="@+id/progressBarName"
-                android:layout_width="wrap_content"
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/switchParticles"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:visibility="gone"
-                android:layout_gravity="center"
-                android:layout_marginTop="8dp" />
+                android:text="Particle Effects"
+                android:textColor="@color/text_primary"
+                android:textSize="16sp"
+                android:padding="12dp" />
 
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:background="#333"
                 android:layout_marginVertical="24dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnResetProgress"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Reset Progress"
+                android:textColor="#FF5252"
+                app:strokeColor="#FF5252"
+                app:cornerRadius="20dp" />
+
         </LinearLayout>
+    </ScrollView>
 
-        <!-- Gameplay section -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Gameplay"
-            android:textSize="14sp"
-            android:textColor="@color/text_secondary"
-            android:letterSpacing="0.1"
-            android:textAllCaps="true"
-            android:layout_marginBottom="8dp" />
-
-        <com.google.android.material.materialswitch.MaterialSwitch
-            android:id="@+id/switchSound"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Sound Effects"
-            android:textColor="@color/text_primary"
-            android:textSize="16sp"
-            android:padding="12dp" />
-
-        <com.google.android.material.materialswitch.MaterialSwitch
-            android:id="@+id/switchVibration"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Vibration"
-            android:textColor="@color/text_primary"
-            android:textSize="16sp"
-            android:padding="12dp" />
-
-        <com.google.android.material.materialswitch.MaterialSwitch
-            android:id="@+id/switchParticles"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Particle Effects"
-            android:textColor="@color/text_primary"
-            android:textSize="16sp"
-            android:padding="12dp" />
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="#333"
-            android:layout_marginVertical="24dp" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnResetProgress"
-            style="@style/Widget.Material3.Button.OutlinedButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Reset Progress"
-            android:textColor="#FF5252"
-            app:strokeColor="#FF5252"
-            app:cornerRadius="20dp" />
-
-    </LinearLayout>
-</ScrollView>
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -12,21 +12,18 @@
         android:label="BrickSmash"
         tools:layout="@layout/fragment_main_menu">
 
-        <action
-            android:id="@+id/action_mainMenu_to_levelSelect"
+        <action android:id="@+id/action_mainMenu_to_levelSelect"
             app:destination="@id/levelSelectFragment" />
-        <action
-            android:id="@+id/action_mainMenu_to_leaderboard"
+        <action android:id="@+id/action_mainMenu_to_leaderboard"
             app:destination="@id/leaderboardFragment" />
-        <action
-            android:id="@+id/action_mainMenu_to_levelEditor"
+        <action android:id="@+id/action_mainMenu_to_levelEditor"
             app:destination="@id/levelEditorFragment" />
-        <action
-            android:id="@+id/action_mainMenu_to_settings"
+        <action android:id="@+id/action_mainMenu_to_settings"
             app:destination="@id/settingsFragment" />
-        <action
-            android:id="@+id/action_mainMenu_to_login"
+        <action android:id="@+id/action_mainMenu_to_login"
             app:destination="@id/loginFragment" />
+        <action android:id="@+id/action_mainMenu_to_howToPlay"
+            app:destination="@id/howToPlayFragment" />
     </fragment>
 
     <fragment
@@ -34,9 +31,7 @@
         android:name="com.bricksmash.ui.LevelSelectFragment"
         android:label="Select Level"
         tools:layout="@layout/fragment_level_select">
-
-        <action
-            android:id="@+id/action_levelSelect_to_game"
+        <action android:id="@+id/action_levelSelect_to_game"
             app:destination="@id/gameFragment" />
     </fragment>
 
@@ -65,13 +60,17 @@
         tools:layout="@layout/fragment_settings" />
 
     <fragment
+        android:id="@+id/howToPlayFragment"
+        android:name="com.bricksmash.ui.HowToPlayFragment"
+        android:label="How to Play"
+        tools:layout="@layout/fragment_how_to_play" />
+
+    <fragment
         android:id="@+id/loginFragment"
         android:name="com.bricksmash.ui.LoginFragment"
         android:label="Sign In"
         tools:layout="@layout/fragment_login">
-
-        <action
-            android:id="@+id/action_login_to_register"
+        <action android:id="@+id/action_login_to_register"
             app:destination="@id/registerFragment" />
     </fragment>
 

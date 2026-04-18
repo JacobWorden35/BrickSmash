@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
@@ -11,8 +12,8 @@ import android.view.WindowInsets
 import com.bricksmash.model.LevelData
 
 /**
- * Custom SurfaceView that hosts the game.
- * Handles touch input and manages the game thread lifecycle.
+ * SurfaceView that hosts the game. Handles touch and keyboard input.
+ * Arrow keys move the paddle (useful for emulator testing).
  */
 class GameView @JvmOverloads constructor(
     context: Context,
@@ -24,17 +25,19 @@ class GameView @JvmOverloads constructor(
     private var isSurfaceReady = false
     private var pendingLevel: LevelData? = null
 
+    // Keyboard paddle speed (pixels per key event)
+    private val keyboardPaddleSpeed = 30f
+
     init {
         holder.addCallback(this)
         isFocusable = true
+        isFocusableInTouchMode = true
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
         isSurfaceReady = true
-
-        // Add this line:
-        engine.statusBarHeight = rootWindowInsets?.getInsets(WindowInsets.Type.statusBars())?.top?.toFloat() ?: 80f
-
+        engine.statusBarHeight =
+            rootWindowInsets?.getInsets(WindowInsets.Type.statusBars())?.top?.toFloat() ?: 80f
         engine.init(width.toFloat(), height.toFloat())
         pendingLevel?.let {
             engine.loadLevel(it)
@@ -54,10 +57,7 @@ class GameView @JvmOverloads constructor(
 
     private fun startThread() {
         gameThread?.isRunning = false
-        gameThread = GameThread(holder, this).apply {
-            isRunning = true
-            start()
-        }
+        gameThread = GameThread(holder, this).apply { isRunning = true; start() }
     }
 
     private fun stopThread() {
@@ -65,67 +65,55 @@ class GameView @JvmOverloads constructor(
             thread.isRunning = false
             var retry = true
             while (retry) {
-                try {
-                    thread.join(500)
-                    retry = false
-                } catch (e: InterruptedException) {
-                    e.printStackTrace()
-                }
+                try { thread.join(500); retry = false }
+                catch (e: InterruptedException) { e.printStackTrace() }
             }
         }
         gameThread = null
     }
 
-    /**
-     * Called by the GameThread each frame to update logic and render.
-     */
     fun updateAndDraw(canvas: Canvas) {
         engine.update()
         engine.draw(canvas)
     }
 
-    /**
-     * Loads a level into the game engine and starts gameplay.
-     */
     fun loadLevel(level: LevelData) {
-        if (isSurfaceReady) {
-            engine.loadLevel(level)
-        } else {
-            pendingLevel = level
-        }
+        if (isSurfaceReady) engine.loadLevel(level) else pendingLevel = level
     }
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        requestFocus()
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
-                // Launch ball if not yet active, otherwise just move paddle
                 engine.launchBall()
                 engine.onTouchMove(event.x)
-
-                // Resume from pause
-                if (engine.isPaused) {
-                    engine.isPaused = false
-                }
+                if (engine.isPaused) engine.isPaused = false
             }
-            MotionEvent.ACTION_MOVE -> {
-                engine.onTouchMove(event.x)
-            }
+            MotionEvent.ACTION_MOVE -> engine.onTouchMove(event.x)
         }
         return true
     }
 
-    fun pause() {
-        engine.isPaused = true
-    }
-
-    fun resume() {
-        if (isSurfaceReady && (gameThread == null || gameThread?.isRunning == false)) {
-            startThread()
+    /**
+     * Keyboard input support — left/right arrows move the paddle.
+     * Primarily useful for testing on an emulator without a touch screen.
+     */
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        return when (keyCode) {
+            KeyEvent.KEYCODE_DPAD_LEFT -> {
+                engine.movePaddleBy(-keyboardPaddleSpeed); true
+            }
+            KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                engine.movePaddleBy(keyboardPaddleSpeed); true
+            }
+            else -> super.onKeyDown(keyCode, event)
         }
     }
 
-    fun cleanup() {
-        stopThread()
+    fun pause() { engine.isPaused = true }
+    fun resume() {
+        if (isSurfaceReady && (gameThread == null || gameThread?.isRunning == false)) startThread()
     }
+    fun cleanup() { stopThread() }
 }

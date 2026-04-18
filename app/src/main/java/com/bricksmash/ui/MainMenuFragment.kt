@@ -12,8 +12,9 @@ import com.bricksmash.databinding.FragmentMainMenuBinding
 import com.google.android.material.bottomnavigation.BottomNavigationView
 
 /**
- * Main menu screen with options for Play, Leaderboard,
- * Level Editor, and Settings.
+ * Main menu. Buttons that correspond to bottom-nav tabs select those tabs
+ * directly so navigation state stays in sync. How-to-Play opens a dedicated
+ * informational screen.
  */
 class MainMenuFragment : Fragment() {
 
@@ -33,10 +34,13 @@ class MainMenuFragment : Fragment() {
 
         updateAuthUI()
 
-        // Play button — select the Levels tab so navigation stays in sync
         binding.btnPlay.setOnClickListener {
             activity?.findViewById<BottomNavigationView>(R.id.bottom_nav)
                 ?.selectedItemId = R.id.levelSelectFragment
+        }
+
+        binding.btnHowToPlay.setOnClickListener {
+            findNavController().navigate(R.id.action_mainMenu_to_howToPlay)
         }
 
         binding.btnLeaderboard.setOnClickListener {
