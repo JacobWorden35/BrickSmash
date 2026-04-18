@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2026 Jacob Worden
+ *
+ * Feel free to use this code as a reference
+ */
 package com.bricksmash.game
 
 import android.graphics.Canvas
